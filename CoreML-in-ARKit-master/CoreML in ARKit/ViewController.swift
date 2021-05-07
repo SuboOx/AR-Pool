@@ -1,8 +1,3 @@
-//
-//  ViewController.swift
-//  CoreML in ARKit
-
-
 import UIKit
 import SceneKit
 import ARKit
@@ -39,15 +34,13 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         // Enable Default Lighting - makes the 3D text a bit poppier.
         sceneView.autoenablesDefaultLighting = true
         
-        //////////////////////////////////////////////////
         // Tap Gesture Recognizer
         let tapGesture = UITapGestureRecognizer(target: self, action: #selector(self.handleTap(gestureRecognize:)))
         view.addGestureRecognizer(tapGesture)
         
-        //////////////////////////////////////////////////
-        
         // Set up Vision Model
-        guard let selectedModel = try? VNCoreMLModel(for: Inceptionv3().model) else { // (Optional) This can be replaced with other models on https://developer.apple.com/machine-learning/
+        guard let selectedModel = try? VNCoreMLModel(for: Inceptionv3().model) else {
+            // (Optional) This can be replaced with other models on https://developer.apple.com/machine-learning/
             fatalError("Could not load model. Ensure model has been drag and dropped (copied) to XCode Project from https://developer.apple.com/machine-learning/ . Also ensure the model is part of a target (see: https://stackoverflow.com/questions/45884085/model-is-not-part-of-any-target-add-the-model-to-a-target-to-enable-generation ")
         }
         
@@ -167,22 +160,18 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         }
         
         // Get Classifications
-        let classifications = observations[0...1] // top 2 results
+        let classifications = observations[0...0] // top 2 results
             .flatMap({ $0 as? VNClassificationObservation })
             .map({ "\($0.identifier) \(String(format:"- %.2f", $0.confidence))" })
             .joined(separator: "\n")
         
         
         DispatchQueue.main.async {
-            // Print Classifications
-            print(classifications)
-//            print("--")
-            
 //            // Display Debug Text on screen
-//            var debugText:String = ""
-//            debugText += classifications
-//            self.debugTextView.text = debugText
-//
+            var debugText:String = ""
+            debugText += classifications
+            self.debugTextView.text = debugText
+
             // Store the latest prediction
             var objectName:String = "…"
             objectName = classifications.components(separatedBy: "-")[0]
@@ -193,20 +182,14 @@ class ViewController: UIViewController, ARSCNViewDelegate {
     }
     
     func updateCoreML() {
-        ///////////////////////////
         // Get Camera Image as RGB
         let pixbuff : CVPixelBuffer? = (sceneView.session.currentFrame?.capturedImage)
         if pixbuff == nil { return }
         let ciImage = CIImage(cvPixelBuffer: pixbuff!)
-        // Note: Not entirely sure if the ciImage is being interpreted as RGB, but for now it works with the Inception model.
-        // Note2: Also uncertain if the pixelBuffer should be rotated before handing off to Vision (VNImageRequestHandler) - regardless, for now, it still works well with the Inception model.
         
-        ///////////////////////////
         // Prepare CoreML/Vision Request
         let imageRequestHandler = VNImageRequestHandler(ciImage: ciImage, options: [:])
-        // let imageRequestHandler = VNImageRequestHandler(cgImage: cgImage!, orientation: myOrientation, options: [:]) // Alternatively; we can convert the above to an RGB CGImage and use that. Also UIInterfaceOrientation can inform orientation values.
         
-        ///////////////////////////
         // Run Image Request
         do {
             try imageRequestHandler.perform(self.visionRequests)
