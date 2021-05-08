@@ -4,17 +4,21 @@ import ARKit
 
 import Vision
 
-class ViewController: UIViewController, ARSCNViewDelegate {
+class ViewController: UIViewController, ARSCNViewDelegate{
 
     // SCENE
     @IBOutlet var sceneView: ARSCNView!
     let bubbleDepth : Float = 0.01 // the 'depth' of 3D text
     var latestPrediction : String = "…" // a variable containing the latest CoreML prediction
     
+    var startVector: SCNVector3!
+    
     // COREML
     var visionRequests = [VNRequest]()
     let dispatchQueueML = DispatchQueue(label: "com.hw.dispatchqueueml") // A Serial Queue
     @IBOutlet weak var debugTextView: UITextView!
+    
+    // Node info
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -109,6 +113,10 @@ class ViewController: UIViewController, ARSCNViewDelegate {
             sceneView.scene.rootNode.addChildNode(node)
             node.position = worldCoord
             print(node.position)
+            if(startVector != nil){
+                addLine(start: worldCoord, end: startVector)
+            }
+            startVector = worldCoord
         }
     }
     
@@ -121,7 +129,7 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         
         
         // CENTRE POINT NODE
-        let sphere = SCNSphere(radius: 0.02)
+        let sphere = SCNSphere(radius: 0.001)
         sphere.firstMaterial?.diffuse.contents = UIColor.cyan
         let sphereNode = SCNNode(geometry: sphere)
         
@@ -160,14 +168,14 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         }
         
         // Get Classifications
-        let classifications = observations[0...0] // top 2 results
+        let classifications = observations[0...0] // top 1 results
             .flatMap({ $0 as? VNClassificationObservation })
             .map({ "\($0.identifier) \(String(format:"- %.2f", $0.confidence))" })
             .joined(separator: "\n")
         
         
         DispatchQueue.main.async {
-//            // Display Debug Text on screen
+            // Display Debug Text on screen
             var debugText:String = ""
             debugText += classifications
             self.debugTextView.text = debugText
@@ -196,7 +204,12 @@ class ViewController: UIViewController, ARSCNViewDelegate {
         } catch {
             print(error)
         }
-        
+    }
+    
+    func addLine(start: SCNVector3, end: SCNVector3) {
+
+        let lineNode = SCNGeometry.cylinderLine(from: start, to: end, segments: 12)
+        sceneView.scene.rootNode.addChildNode(lineNode)
     }
 }
 
@@ -205,5 +218,42 @@ extension UIFont {
     func withTraits(traits:UIFontDescriptorSymbolicTraits...) -> UIFont {
         let descriptor = self.fontDescriptor.withSymbolicTraits(UIFontDescriptorSymbolicTraits(traits))
         return UIFont(descriptor: descriptor!, size: 0)
+    }
+}
+
+extension SCNGeometry {
+
+    class func cylinderLine(from: SCNVector3, to: SCNVector3, segments: Int) -> SCNNode {
+
+        let x1 = from.x
+        let x2 = to.x
+
+        let y1 = from.y
+        let y2 = to.y
+
+        let z1 = from.z
+        let z2 = to.z
+
+        let distance = sqrtf((x2 - x1) * (x2 - x1) +
+                             (y2 - y1) * (y2 - y1) +
+                             (z2 - z1) * (z2 - z1))
+
+        let cylinder = SCNCylinder(radius: 0.005,
+                                   height: CGFloat(distance))
+
+        cylinder.radialSegmentCount = segments
+        cylinder.firstMaterial?.diffuse.contents = UIColor.yellow.withAlphaComponent(0.75)
+
+        let lineNode = SCNNode(geometry: cylinder)
+
+        lineNode.position = SCNVector3(((from.x + to.x)/2),
+                                       ((from.y + to.y)/2),
+                                       ((from.z + to.z)/2))
+
+        lineNode.eulerAngles = SCNVector3(Float.pi/2,
+                                          acos((to.z - from.z)/distance),
+                                          atan2(to.y - from.y, to.x - from.x))
+
+        return lineNode
     }
 }
